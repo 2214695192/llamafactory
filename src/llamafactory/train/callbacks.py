@@ -32,6 +32,7 @@ from transformers.utils import (
     is_safetensors_available,
 )
 from typing_extensions import override
+import numpy as np
 
 from ..extras import logging
 from ..extras.constants import TRAINER_LOG, V_HEAD_SAFE_WEIGHTS_NAME, V_HEAD_WEIGHTS_NAME
@@ -393,3 +394,83 @@ class ReporterCallback(TrainerCallback):
                     "generating_args": self.generating_args.to_dict(),
                 }
             )
+
+
+# --- 添加 LogRankDistributionCallback ---
+class LogRankDistributionCallback(TrainerCallback):
+    """
+    A TrainerCallback that logs the rank distribution of LoRA layers during training,
+    intended for use with dynamic rank allocation.
+    """
+    def __init__(self, log_every_n_steps: int = 1):
+        """
+        Args:
+            log_every_n_steps (int): Log rank distribution every N logging steps.
+                                     Defaults to 1 (log every time `on_log` is called).
+        """
+        self.log_counter = 0
+        # Ensure log_every_n_steps is at least 1
+        self.log_every_n_steps = max(1, log_every_n_steps)
+        logger.info(f"Rank distribution logging enabled every {self.log_every_n_steps} log steps.")
+
+    def on_log(self, args: "TrainingArguments", state: "TrainerState", control: "TrainerControl", model=None, logs=None, **kwargs):
+        """
+        Event called after logging the training loss. Logs rank distribution.
+        """
+        # Check if model is provided and dynamic rank is likely used
+        if model is None:
+            # logger.warning("Model not provided to LogRankDistributionCallback.on_log, skipping rank logging.")
+            return
+
+        # Safely access finetuning_args from TrainingArguments if available
+        finetuning_args: Optional["FinetuningArguments"] = getattr(args, "finetuning_args", None)
+
+        # Only log if dynamic rank is enabled in finetuning_args
+        if not (finetuning_args and finetuning_args.use_dynamic_rank):
+            return
+
+        # Check log frequency
+        self.log_counter += 1
+        if self.log_counter % self.log_every_n_steps != 0:
+            return
+
+        # Log rank distribution
+        ranks = {}
+        if hasattr(model, "peft_config"):
+            try:
+                if isinstance(model.peft_config, dict):
+                    default_config = model.peft_config.get("default", None)
+                    if default_config and hasattr(default_config, "rank_pattern"):
+                        rank_pattern = default_config.rank_pattern
+                        if rank_pattern: ranks = rank_pattern
+                elif hasattr(model.peft_config, "rank_pattern"):
+                    rank_pattern = model.peft_config.rank_pattern
+                    if rank_pattern: ranks = rank_pattern
+            except Exception as e:
+                logger.warning(f"Could not access rank_pattern from peft_config in Callback: {e}")
+
+        if ranks and isinstance(ranks, dict):
+            all_ranks_values = list(ranks.values())
+            if all_ranks_values:
+                metrics_to_log = {
+                    "rank/avg": round(np.mean(all_ranks_values), 2),
+                    "rank/max": max(all_ranks_values),
+                    "rank/min": min(all_ranks_values),
+                    "rank/num_layers": len(all_ranks_values)
+                }
+                # Log sample distribution if too large
+                if len(ranks) > 10:
+                    rank_summary = {k: v for i, (k, v) in enumerate(ranks.items()) if i < 5}
+                    rank_summary["..."] = f"({len(ranks)} total layers)"
+                    metrics_to_log["rank/dist_sample"] = str(rank_summary)
+                else:
+                    metrics_to_log["rank/dist"] = str(ranks)
+
+                # Use the trainer's log method to log these metrics
+                # This ensures they appear alongside other training logs (loss, lr, etc.)
+                if hasattr(self, "trainer") and hasattr(self.trainer, "log"): # Check if trainer context is available
+                    self.trainer.log(metrics_to_log)
+                else: # Fallback to logger if trainer context isn't easily accessible (might be less integrated)
+                    logger.info(f"Dynamic Rank Metrics @ step {state.global_step}: {metrics_to_log}")
+        # else:
+        #     logger.debug(f"No rank pattern found or empty at step {state.global_step}, skipping rank log.")

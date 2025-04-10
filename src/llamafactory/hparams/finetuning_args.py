@@ -60,69 +60,88 @@ class LoraArguments:
     Arguments pertaining to the LoRA training.
     """
 
-    additional_target: Optional[str] = field(
-        default=None,
-        metadata={
-            "help": (
-                "Name(s) of modules apart from LoRA layers to be set as trainable "
-                "and saved in the final checkpoint. "
-                "Use commas to separate multiple modules."
-            )
-        },
-    )
-    lora_alpha: Optional[int] = field(
-        default=None,
-        metadata={"help": "The scale factor for LoRA fine-tuning (default: lora_rank * 2)."},
-    )
-    lora_dropout: float = field(
-        default=0.0,
-        metadata={"help": "Dropout rate for the LoRA fine-tuning."},
-    )
     lora_rank: int = field(
         default=8,
-        metadata={"help": "The intrinsic dimension for LoRA fine-tuning."},
+        metadata={"help": "The intrinsic dimension for LoRA fine-tuning."}
+    )
+    lora_alpha: float = field(
+        default=32.0,
+        metadata={"help": "The scale factor for LoRA fine-tuning (similar with the learning rate)."}
+    )
+    lora_dropout: float = field(
+        default=0.1,
+        metadata={"help": "Dropout rate for the LoRA fine-tuning."}
     )
     lora_target: str = field(
         default="all",
-        metadata={
-            "help": (
-                "Name(s) of target modules to apply LoRA. "
-                "Use commas to separate multiple modules. "
-                "Use `all` to specify all the linear modules."
-            )
-        },
+        metadata={"help": "Name(s) of target modules to apply LoRA. Use commas to separate multiple modules."}
     )
-    loraplus_lr_ratio: Optional[float] = field(
+    lora_modules_to_save: str = field(
         default=None,
-        metadata={"help": "LoRA plus learning rate ratio (lr_B / lr_A)."},
-    )
-    loraplus_lr_embedding: float = field(
-        default=1e-6,
-        metadata={"help": "LoRA plus learning rate for lora embedding layers."},
-    )
-    use_rslora: bool = field(
-        default=False,
-        metadata={"help": "Whether or not to use the rank stabilization scaling factor for LoRA layer."},
-    )
-    use_dora: bool = field(
-        default=False,
-        metadata={"help": "Whether or not to use the weight-decomposed lora method (DoRA)."},
-    )
-    pissa_init: bool = field(
-        default=False,
-        metadata={"help": "Whether or not to initialize a PiSSA adapter."},
-    )
-    pissa_iter: int = field(
-        default=16,
-        metadata={"help": "The number of iteration steps performed by FSVD in PiSSA. Use -1 to disable it."},
-    )
-    pissa_convert: bool = field(
-        default=False,
-        metadata={"help": "Whether or not to convert the PiSSA adapter to a normal LoRA adapter."},
+        metadata={"help": "Name(s) of modules apart from LoRA layers to be set as trainable and saved in the final checkpoint."}
     )
     create_new_adapter: bool = field(
         default=False,
-        metadata={"help": "Whether or not to create a new adapter with randomly initialized weight."},
+        metadata={"help": "Whether to create a new adapter with randomly initialized weights or load an existing adapter."}
+    )
+    use_rslora: bool = field(
+        default=False,
+        metadata={"help": "Whether to use the rank-stabilized LoRA proposed in https://arxiv.org/abs/2312.03732."}
+    )
+    use_dora: bool = field(
+        default=False,
+        metadata={"help": "Whether to use the weight-decomposed LoRA proposed in https://arxiv.org/abs/2402.09353."}
+    )
+    # Knowledge-aware parameters
+    use_dynamic_rank: bool = field(
+        default=False,
+        metadata={"help": "Whether to use dynamic rank allocation based on layer position."}
+    )
+    rank_pattern: str = field(
+        default="gaussian",
+        metadata={"help": "Pattern for base knowledge score calculation. Options: gaussian, linear, constant, late_bias, early_bias. Type-based boost is applied separately."}
+    )
+    middle_layer_factor: float = field(
+        default=1.0,
+        metadata={"help": "Base factor for middle layers in gaussian/linear patterns (boosted further by attention factor)."}
+    )
+    min_rank: int = field(
+        default=4,
+        metadata={"help": "Minimum rank for any layer."}
+    )
+    max_rank: int = field(
+        default=32,
+        metadata={"help": "Maximum rank for any layer."}
+    )
+    rank_smooth_factor: float = field(
+        default=0.8,
+        metadata={"help": "Smoothing factor for knowledge score in dynamic rank calculation (score weight)."}
+    )
+    rank_base_factor: float = field(
+        default=0.2,
+        metadata={"help": "Base factor for knowledge score smoothing (ensures minimum score weight)."}
+    )
+    # Knowledge distillation parameters
+    use_knowledge_distillation: bool = field(
+        default=False,
+        metadata={"help": "Whether to use knowledge distillation during training. Requires setting `teacher_model_name_or_path`."}
+    )
+    teacher_model_name_or_path: str = field(
+        default=None,
+        metadata={"help": "Path to the teacher model for knowledge distillation."}
+    )
+    distillation_temperature: float = field(
+        default=2.0,
+        metadata={"help": "Temperature for knowledge distillation."}
+    )
+    distillation_weight: float = field(
+        default=0.5,
+        metadata={"help": "Weight for knowledge distillation loss."}
+    )
+    # --- 新增 Attention Boost 参数 ---
+    attention_boost_factor: float = field(
+        default=1.5,
+        metadata={"help": "Additional boost factor applied to the knowledge score of Attention layers in the middle block."}
     )
 
 
@@ -384,6 +403,30 @@ class FinetuningArguments(
         default=False,
         metadata={"help": "Whether or not to compute effective tokens per second."},
     )
+    pissa_init: bool = field(
+        default=False,
+        metadata={"help": "Whether or not to use PISSA initialization."},
+    )
+    pissa_convert: bool = field(
+        default=False,
+        metadata={"help": "Whether or not to convert the model to PISSA format."},
+    )
+    pissa_algo: Literal["std", "reverse_std", "right", "left", "full"] = field(
+        default="std",
+        metadata={"help": "The algorithm to use for PISSA."},
+    )
+    pissa_alpha: float = field(
+        default=1.0,
+        metadata={"help": "The alpha parameter for PISSA."},
+    )
+    pissa_beta: float = field(
+        default=0.1,
+        metadata={"help": "The beta parameter for PISSA."},
+    )
+    loraplus_lr_ratio: Optional[float] = field(
+        default=None,
+        metadata={"help": "The ratio of learning rate for LoRA+ training. If None, use normal LoRA training."}
+    )
 
     def __post_init__(self):
         def split_arg(arg):
@@ -393,12 +436,17 @@ class FinetuningArguments(
 
         self.freeze_trainable_modules: List[str] = split_arg(self.freeze_trainable_modules)
         self.freeze_extra_modules: Optional[List[str]] = split_arg(self.freeze_extra_modules)
-        self.lora_alpha: int = self.lora_alpha or self.lora_rank * 2
         self.lora_target: List[str] = split_arg(self.lora_target)
-        self.additional_target: Optional[List[str]] = split_arg(self.additional_target)
+        self.lora_modules_to_save: Optional[List[str]] = split_arg(self.lora_modules_to_save)
         self.galore_target: List[str] = split_arg(self.galore_target)
         self.freeze_vision_tower = self.freeze_vision_tower or self.train_mm_proj_only
         self.use_ref_model = self.stage == "dpo" and self.pref_loss not in ["orpo", "simpo"]
+
+        # Add validation for PISSA parameters
+        if self.pissa_init or self.pissa_convert:
+            assert self.pissa_algo in ["std", "reverse_std", "right", "left", "full"], "Invalid PISSA algorithm."
+            assert self.pissa_alpha > 0, "PISSA alpha must be positive."
+            assert self.pissa_beta > 0, "PISSA beta must be positive."
 
         assert self.finetuning_type in ["lora", "freeze", "full"], "Invalid fine-tuning method."
         assert self.ref_model_quantization_bit in [None, 8, 4], "We only accept 4-bit or 8-bit quantization."
@@ -408,40 +456,4 @@ class FinetuningArguments(
             raise ValueError("`reward_model` is necessary for PPO training.")
 
         if self.stage == "ppo" and self.reward_model_type == "lora" and self.finetuning_type != "lora":
-            raise ValueError("`reward_model_type` cannot be lora for Freeze/Full PPO training.")
-
-        if self.stage == "dpo" and self.pref_loss != "sigmoid" and self.dpo_label_smoothing > 1e-6:
-            raise ValueError("`dpo_label_smoothing` is only valid for sigmoid loss function.")
-
-        if self.use_llama_pro and self.finetuning_type == "full":
-            raise ValueError("`use_llama_pro` is only valid for Freeze or LoRA training.")
-
-        if self.finetuning_type == "lora" and (self.use_galore or self.use_badam):
-            raise ValueError("Cannot use LoRA with GaLore or BAdam together.")
-
-        if self.use_galore and self.use_badam:
-            raise ValueError("Cannot use GaLore with BAdam together.")
-
-        if self.pissa_init and (self.stage in ["ppo", "kto"] or self.use_ref_model):
-            raise ValueError("Cannot use PiSSA for current training stage.")
-
-        if self.train_mm_proj_only and self.finetuning_type != "full":
-            raise ValueError("`train_mm_proj_only` is only valid for full training.")
-
-        if self.finetuning_type != "lora":
-            if self.loraplus_lr_ratio is not None:
-                raise ValueError("`loraplus_lr_ratio` is only valid for LoRA training.")
-
-            if self.use_rslora:
-                raise ValueError("`use_rslora` is only valid for LoRA training.")
-
-            if self.use_dora:
-                raise ValueError("`use_dora` is only valid for LoRA training.")
-
-            if self.pissa_init:
-                raise ValueError("`pissa_init` is only valid for LoRA training.")
-
-    def to_dict(self) -> Dict[str, Any]:
-        args = asdict(self)
-        args = {k: f"<{k.upper()}>" if k.endswith("api_key") else v for k, v in args.items()}
-        return args
+            raise ValueError("`reward_model_type` must be set to 'lora' when using LoRA for PPO training.")

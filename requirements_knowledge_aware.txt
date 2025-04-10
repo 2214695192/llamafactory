@@ -1,0 +1,8 @@
+# Essential dependencies for knowledge-aware training
+transformers==4.41.2
+peft==0.11.1
+accelerate==0.34.0
+torch==2.0.0
+numpy==1.24.3
+matplotlib==3.7.1
+tensorboard==2.15.0 

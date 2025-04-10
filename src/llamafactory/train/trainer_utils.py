@@ -17,10 +17,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import TYPE_CHECKING, Callable, Dict, List, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Callable, Dict, List, Optional, Tuple, Union, Literal
+import math
+import numpy as np
 
 import torch
-from transformers import Trainer
+from transformers import Trainer, Seq2SeqTrainingArguments, TrainerCallback
 from transformers.integrations import is_deepspeed_zero3_enabled
 from transformers.modeling_utils import is_fsdp_enabled
 from transformers.optimization import get_scheduler
@@ -33,6 +35,7 @@ from ..extras.constants import IGNORE_INDEX
 from ..extras.packages import is_galore_available
 from ..hparams import FinetuningArguments, ModelArguments
 from ..model import find_all_linear_modules, load_model, load_tokenizer, load_valuehead_params
+from ..model.adapter import _get_layer_idx
 
 
 if is_galore_available():
@@ -40,7 +43,7 @@ if is_galore_available():
 
 
 if TYPE_CHECKING:
-    from transformers import PreTrainedModel, Seq2SeqTrainingArguments, TrainerCallback
+    from transformers import PreTrainedModel
     from trl import AutoModelForCausalLMWithValueHead
 
     from ..hparams import DataArguments
@@ -401,16 +404,23 @@ def create_custom_optimizer(
     finetuning_args: "FinetuningArguments",
 ) -> Optional["torch.optim.Optimizer"]:
     if finetuning_args.use_galore:
+        logger.info_rank0("Creating GaLore optimizer.")
         return _create_galore_optimizer(model, training_args, finetuning_args)
 
     if finetuning_args.loraplus_lr_ratio is not None:
+        logger.info_rank0("Creating LoRA+ optimizer.")
         return _create_loraplus_optimizer(model, training_args, finetuning_args)
 
     if finetuning_args.use_badam:
+        logger.info_rank0("Creating BAdam optimizer.")
         return _create_badam_optimizer(model, training_args, finetuning_args)
 
     if finetuning_args.use_adam_mini:
+        logger.info_rank0("Creating Adam-mini optimizer.")
         return _create_adam_mini_optimizer(model, training_args)
+
+    logger.info_rank0("No custom optimizer specified, using default Trainer optimizer.")
+    return None
 
 
 def create_custom_scheduler(
@@ -477,3 +487,78 @@ def get_swanlab_callback(finetuning_args: "FinetuningArguments") -> "TrainerCall
         config={"Framework": "🦙LlamaFactory"},
     )
     return swanlab_callback
+
+
+def _get_layer_name(param_name: str) -> str:
+    """Extract layer name from parameter name."""
+    parts = param_name.split('.')
+    if len(parts) > 2 and parts[1] == 'layers': # 适用于 Llama 等模型
+        return '.'.join(parts[:3]) # e.g., model.layers.0
+    return parts[0] # 否则返回顶层模块名
+
+
+class KnowledgeAwareTrainer(Trainer):
+    """
+    Custom trainer. If dynamic rank via adapter.py is used,
+    this class might mainly be used for potential future extensions
+    or specific logging not handled by callbacks.
+    """
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.teacher_model = None
+        # finetuning_args = getattr(self.args, "finetuning_args", None)
+        # if finetuning_args and finetuning_args.use_knowledge_distillation:
+        #     # ... (教师模型加载逻辑) ...
+        #     pass
+        # else:
+        #     logger.info_rank0("Knowledge distillation is disabled in KnowledgeAwareTrainer init.")
+
+    def compute_loss(self, model, inputs, return_outputs=False):
+        outputs = model(**inputs)
+        loss = outputs.loss
+        # finetuning_args = getattr(self.args, "finetuning_args", None)
+        # if finetuning_args and finetuning_args.use_knowledge_distillation and self.teacher_model is not None:
+        #     # ... (KD 损失计算和混合逻辑) ...
+        #     pass
+
+        return (loss, outputs) if return_outputs else loss
+
+    def _maybe_log_save_evaluate(self, tr_loss, model, trial, epoch, ignore_keys_for_eval):
+        super()._maybe_log_save_evaluate(tr_loss, model, trial, epoch, ignore_keys_for_eval) # 调用父类
+
+        # --- 记录秩分布日志 (建议移至 Callback) ---
+        finetuning_args = getattr(self.args, "finetuning_args", None)
+        if finetuning_args and finetuning_args.use_dynamic_rank and hasattr(model, "peft_config"):
+            if self.control.should_log:
+                ranks = {}
+                try:
+                    if isinstance(model.peft_config, dict):
+                         default_config = model.peft_config.get("default", None)
+                         if default_config and hasattr(default_config, "rank_pattern"):
+                             rank_pattern = default_config.rank_pattern
+                             if rank_pattern: ranks = rank_pattern
+                    elif hasattr(model.peft_config, "rank_pattern"):
+                         rank_pattern = model.peft_config.rank_pattern
+                         if rank_pattern: ranks = rank_pattern
+                except Exception as e:
+                    logger.warning(f"Could not access rank_pattern from peft_config in Trainer: {e}")
+
+                if ranks and isinstance(ranks, dict):
+                    all_ranks_values = list(ranks.values())
+                    if all_ranks_values:
+                        metrics = {
+                            "knowledge_metrics/avg_rank": round(np.mean(all_ranks_values), 2),
+                            "knowledge_metrics/max_rank": max(all_ranks_values),
+                            "knowledge_metrics/min_rank": min(all_ranks_values),
+                            "knowledge_metrics/num_dynamic_layers": len(all_ranks_values)
+                        }
+                        if len(ranks) > 10:
+                            rank_summary = {k: v for i, (k, v) in enumerate(ranks.items()) if i < 5}
+                            rank_summary["..."] = f"({len(ranks)} total layers)"
+                            metrics["knowledge_metrics/rank_distribution_sample"] = str(rank_summary)
+                        else:
+                            metrics["knowledge_metrics/rank_distribution"] = str(ranks)
+
+                        # logger.info("Logging dynamic rank metrics from KnowledgeAwareTrainer.") # Add debug log
+                        self.log(metrics)

@@ -1,0 +1,112 @@
+[
+    {
+        "id": 1,
+        "question": "The following drops can improve the ptosis temporarily except",
+        "options": [
+            "A. Apraclonidine",
+            "B. Oxymetazoline",
+            "C. Naphazoline",
+            "D. Phenyepherine"
+        ],
+        "answer": "C"
+    },
+    {
+        "id": 2,
+        "question": "Which of the following is associated with type 2 blepharophimosis syndrome?",
+        "options": [
+            "A. Epicanthus tarsalis",
+            "B. Gene mutation in FOXL2",
+            "C. Primary ovarian failure",
+            "D.Primary ovarian failure"
+        ],
+        "answer": "B"
+    },
+    {
+        "id": 3,
+        "question": "Regarding the surgical technique for frontalis fap procedure, which is false:",
+        "options": [
+            "A. Requires a long learning curve",
+            "B. Is adjustable",
+            "C. Can be done through a single incision",
+            "D. Is essentially a rotational fap"
+        ],
+        "answer": "A"
+    },
+    {
+        "id": 4,
+        "question": "Regarding Marcus Gunn jaw-winking, which is incorrect:",
+        "options": [
+            "A. Commonly involves the ipsilateral internal pterygoid muscle",
+            "B. Amplitude is greater in patients who have more severe ptosis",
+            "C. Often becomes less noticeable with increasing age.",
+            "D. May require levator ablation as treatment"
+        ],
+        "answer": "A"
+    },
+    {
+        "id": 5,
+        "question": "Blepharophimosis is generally associated with, one is false:",
+        "options": [
+            "A. Ptosis",
+            "B. Epicanthus inversus",
+            "C. Distichiasis",
+            "D. Ectropion"
+        ],
+        "answer": "D"
+    },
+    {
+        "id": 6,
+        "question": "A patient with ptosis presents with retraction of the ptotic eyelid on chewing. This is called:",
+        "options": [
+            "A. Marcus Gunn jaw winking syndrome",
+            "B. Third nerve misdirection syndrome",
+            "C. Abducens palsy",
+            "D. Oculomotor palsy"
+        ],
+        "answer": "A"
+    },
+    {
+        "id": 7,
+        "question": "A patient diagnosed with myasthenia gravis (MG) requires:",
+        "options": [
+            "A. MRI scan of the brain",
+            "B. B-scan ultrasonography of the eye and orbit",
+            "C. CT scan of the chest",
+            "D. Carotid Doppler ultrasonography"
+        ],
+        "answer": "C"
+    },
+    {
+        "id": 8,
+        "question": "Jaw winking is most commonly due to synkinesis of which two cranial nerves?",
+        "options": [
+            "A.Oculomotor and Facial",
+            "B.Abducens and oculomotor",
+            "C.Trigeminal and oculomotor",
+            "D.Trochlear and abducens."
+        ],
+        "answer": "C"
+    },
+    {
+        "id": 9,
+        "question": "All of the following surgeries may be performed by making an incision at the lid crease except",
+        "options": [
+            "A. Blepharoplasty",
+            "B. Fasanella Servat procedure",
+            "C. Lateral orbitotomy",
+            "D. Optic nerve sheath fenestration"
+        ],
+        "answer": "B"
+    },
+    {
+        "id": 10,
+        "question": "All of the following are true regarding the levator palpebrae superioris, except",
+        "options": [
+            "A. It runs from the posterior lacrimal crest medially to the lateral orbital tubercle laterally",
+            "B. Its superfcial portion inserts into the orbicularis muscle and subcutaneous tissues",
+            "C. It originates in close proximity to the superior rectus origin, just above the annulus of Zinn.",
+            "D. The muscular portion is shorter than the aponeurotic portion."
+        ],
+        "answer": "D"
+    }
+]

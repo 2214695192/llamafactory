@@ -1,0 +1,103 @@
+{
+    "accuracy": 0.3,
+    "f1_score": 0.30833333333333335,
+    "efficiency_metrics": {
+        "average_response_time": 0.29674587249755857,
+        "median_response_time": 0.1399472951889038,
+        "p95_response_time": 1.0026382565498335,
+        "response_times": [
+            1.6899192333221436,
+            0.14026308059692383,
+            0.14195799827575684,
+            0.1397838592529297,
+            0.13846659660339355,
+            0.13904142379760742,
+            0.1377425193786621,
+            0.13754510879516602,
+            0.14011073112487793,
+            0.162628173828125
+        ]
+    },
+    "detail": [
+        {
+            "id": 1,
+            "question": "The following drops can improve the ptosis temporarily except",
+            "predicted": "D",
+            "correct": "C",
+            "is_correct": false,
+            "response_time": 1.6899192333221436
+        },
+        {
+            "id": 2,
+            "question": "Which of the following is associated with type 2 blepharophimosis syndrome?",
+            "predicted": "B",
+            "correct": "B",
+            "is_correct": true,
+            "response_time": 0.14026308059692383
+        },
+        {
+            "id": 3,
+            "question": "Regarding the surgical technique for frontalis fap procedure, which is false:",
+            "predicted": "D",
+            "correct": "A",
+            "is_correct": false,
+            "response_time": 0.14195799827575684
+        },
+        {
+            "id": 4,
+            "question": "Regarding Marcus Gunn jaw-winking, which is incorrect:",
+            "predicted": "C",
+            "correct": "A",
+            "is_correct": false,
+            "response_time": 0.1397838592529297
+        },
+        {
+            "id": 5,
+            "question": "Blepharophimosis is generally associated with, one is false:",
+            "predicted": "D",
+            "correct": "D",
+            "is_correct": true,
+            "response_time": 0.13846659660339355
+        },
+        {
+            "id": 6,
+            "question": "A patient with ptosis presents with retraction of the ptotic eyelid on chewing. This is called:",
+            "predicted": "A",
+            "correct": "A",
+            "is_correct": true,
+            "response_time": 0.13904142379760742
+        },
+        {
+            "id": 7,
+            "question": "A patient diagnosed with myasthenia gravis (MG) requires:",
+            "predicted": "B",
+            "correct": "C",
+            "is_correct": false,
+            "response_time": 0.1377425193786621
+        },
+        {
+            "id": 8,
+            "question": "Jaw winking is most commonly due to synkinesis of which two cranial nerves?",
+            "predicted": "A",
+            "correct": "C",
+            "is_correct": false,
+            "response_time": 0.13754510879516602
+        },
+        {
+            "id": 9,
+            "question": "All of the following surgeries may be performed by making an incision at the lid crease except",
+            "predicted": "C",
+            "correct": "B",
+            "is_correct": false,
+            "response_time": 0.14011073112487793
+        },
+        {
+            "id": 10,
+            "question": "All of the following are true regarding the levator palpebrae superioris, except",
+            "predicted": "A",
+            "correct": "D",
+            "is_correct": false,
+            "response_time": 0.162628173828125
+        }
+    ]
+}
